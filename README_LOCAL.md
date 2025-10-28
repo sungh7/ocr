@@ -73,6 +73,7 @@ pip install torch torchvision --index-url https://download.pytorch.org/whl/cu118
 | `deepseek-vl-1.3b` | ~3GB | 4GB | 빠르고 효율적 (기본) |
 | `deepseek-vl-7b` | ~15GB | 14GB | 더 정확함 |
 | `minicpm-o-2.6` | ~8GB | 8GB | 균형잡힌 성능 |
+| `paddleocr` | Auto | 2GB | 테이블 OCR 특화 🆕 |
 
 **다운로드 명령어:**
 
@@ -86,11 +87,15 @@ python download_model.py --model-type deepseek-vl-7b
 # MiniCPM-o 2.6
 python download_model.py --model-type minicpm-o-2.6
 
+# PaddleOCR (자동 다운로드, 사전 다운로드 불필요)
+python download_model.py --model-type paddleocr
+
 # 모든 모델 다운로드
 python download_model.py --all
 ```
 
 모델은 자동으로 `~/.cache/huggingface/` 디렉토리에 다운로드됩니다.
+**참고:** PaddleOCR은 처음 사용 시 자동으로 모델을 다운로드합니다.
 
 #### 5. 환경 변수 설정 (선택사항)
 
@@ -101,7 +106,7 @@ cp .env.example .env
 `.env` 파일에서 모델 선택 및 설정 변경:
 ```env
 # 사용할 모델 선택
-MODEL_TYPE=deepseek-vl-1.3b  # 또는 deepseek-vl-7b, minicpm-o-2.6
+MODEL_TYPE=deepseek-vl-1.3b  # 또는 deepseek-vl-7b, minicpm-o-2.6, paddleocr
 
 # 디바이스 설정
 DEVICE=auto           # auto, cuda, cpu
@@ -375,7 +380,7 @@ sudo systemctl restart docker
 - **정확도:** 매우 좋음 ⭐⭐⭐⭐⭐
 - **추천 용도:** 높은 정확도 필요 시, 배치 처리
 
-### MiniCPM-o 2.6 (NEW!)
+### MiniCPM-o 2.6
 - **크기:** ~8GB
 - **파라미터:** 2.6B
 - **VRAM:** 8GB (fp16), 4GB (8bit), 2GB (4bit)
@@ -383,16 +388,34 @@ sudo systemctl restart docker
 - **정확도:** 좋음 ⭐⭐⭐⭐
 - **추천 용도:** 균형잡힌 성능, 범용 사용
 
+### PaddleOCR 🆕
+- **크기:** Auto-download (~몇백MB)
+- **파라미터:** -
+- **VRAM:** 2GB
+- **속도:** 빠름 ⚡⚡⚡
+- **정확도:** 테이블 특화 ⭐⭐⭐⭐
+- **추천 용도:** 테이블 구조가 명확한 이미지, OCR 특화
+
+**특징:**
+- 테이블 구조 인식에 특화된 PaddlePaddle 기반 OCR
+- 첫 실행 시 자동으로 모델 다운로드
+- 경량 모델로 빠른 추론 속도
+- 영어, 중국어, 한국어 등 다국어 지원
+- HTML 테이블 형식으로 직접 출력
+
 ### 모델 선택 가이드
 
 | 상황 | 추천 모델 | 이유 |
 |------|----------|------|
-| GPU 메모리 4GB 이하 | deepseek-vl-1.3b (8bit) | 가장 적은 메모리 사용 |
-| GPU 메모리 8GB | minicpm-o-2.6 | 좋은 성능과 효율성 균형 |
-| GPU 메모리 16GB 이상 | deepseek-vl-7b | 최고 정확도 |
-| 빠른 처리 속도 필요 | deepseek-vl-1.3b | 가장 빠른 추론 |
-| 높은 정확도 필요 | deepseek-vl-7b | 가장 정확한 결과 |
-| 범용 사용 | minicpm-o-2.6 | 중간 크기, 좋은 성능 |
+| **GPU 메모리 2GB 이하** | `paddleocr` | 최소 메모리, 테이블 특화 |
+| **GPU 메모리 4GB 이하** | `deepseek-vl-1.3b` (8bit) | 경량 비전-언어 모델 |
+| **GPU 메모리 8GB** | `minicpm-o-2.6` | 성능과 효율 균형 |
+| **GPU 메모리 16GB+** | `deepseek-vl-7b` | 최고 정확도 |
+| **빠른 처리 속도** | `paddleocr` 또는 `deepseek-vl-1.3b` | 가장 빠른 추론 |
+| **높은 정확도** | `deepseek-vl-7b` | 가장 정확 |
+| **테이블만 추출** | `paddleocr` | 테이블 OCR 전문 |
+| **범용 사용** | `minicpm-o-2.6` | 균형잡힌 선택 |
+| **초기 테스트** | `paddleocr` | 빠른 설치, 자동 다운로드 |
 
 ## 비용 비교
 

@@ -60,6 +60,27 @@ def download_model(model_type: str, cache_dir: str = None):
     print(f"Description: {model_config['description']}")
     print(f"VRAM Required: {model_config['vram']}")
     print()
+
+    # Special handling for PaddleOCR
+    if model_type == "paddleocr":
+        print("PaddleOCR models are automatically downloaded on first use.")
+        print("No pre-download necessary!")
+        print()
+        print("=" * 70)
+        print("✓ PaddleOCR is ready to use!")
+        print("=" * 70)
+        print()
+        print("You can now run the application with:")
+        print("  python app_local.py")
+        print()
+        print("To use this model, set in .env:")
+        print(f"  MODEL_TYPE={model_type}")
+        print()
+        print("Note: Models will be downloaded automatically when you first")
+        print("      process an image. This may take a few minutes.")
+        print()
+        return
+
     print("This may take several minutes depending on your internet connection...")
     print()
 

@@ -43,6 +43,13 @@ class ModelFactory:
             "hf_name": "openbmb/MiniCPM-o-2_6",
             "description": "MiniCPM-o 2.6 - Efficient multimodal model",
             "vram": "8GB"
+        },
+        "paddleocr": {
+            "module": "paddleocr_model",
+            "class": "PaddleOCRModel",
+            "hf_name": "PaddlePaddle/PaddleOCR",
+            "description": "PaddleOCR - Specialized table recognition",
+            "vram": "2GB"
         }
     }
 
@@ -98,6 +105,14 @@ class ModelFactory:
                 device=device,
                 load_in_8bit=load_in_8bit,
                 load_in_4bit=load_in_4bit
+            )
+        elif module_name == "paddleocr_model":
+            from paddleocr_model import get_model_instance
+            # PaddleOCR uses GPU flag instead of device string
+            use_gpu = (device in ["auto", "cuda"])
+            return get_model_instance(
+                use_gpu=use_gpu,
+                lang="en"
             )
         else:
             raise ValueError(f"Unknown module: {module_name}")

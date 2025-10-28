@@ -20,5 +20,11 @@ sentencepiece>=0.1.99
 einops>=0.7.0
 timm>=0.9.0
 
+# PaddleOCR for table recognition
+paddlepaddle>=2.6.0  # Use paddlepaddle-gpu for GPU support
+paddleocr>=2.7.0
+opencv-python>=4.8.0
+beautifulsoup4>=4.12.0
+
 # Optional: For model quantization (reduces memory usage)
 bitsandbytes>=0.41.0
