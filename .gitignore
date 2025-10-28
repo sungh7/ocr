@@ -48,6 +48,10 @@ uploads/
 !static/*.png
 !static/*.jpg
 
+# Excel files
+*.xlsx
+*.xls
+
 # Model cache
 models/
 *.pt

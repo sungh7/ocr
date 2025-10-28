@@ -3,8 +3,8 @@ import base64
 import json
 from io import BytesIO
 from typing import Optional
-from fastapi import FastAPI, File, UploadFile, HTTPException
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi import FastAPI, File, UploadFile, HTTPException, Form
+from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from PIL import Image
@@ -12,6 +12,9 @@ from openai import OpenAI
 from pydantic_settings import BaseSettings
 from pydantic import Field
 import uvicorn
+
+# Import Excel utilities
+from excel_utils import create_excel_from_tables, validate_table_data
 
 
 class Settings(BaseSettings):
@@ -236,6 +239,58 @@ async def extract_table(file: UploadFile = File(...)):
         raise HTTPException(
             status_code=500,
             detail=f"Error processing image: {str(e)}"
+        )
+
+
+@app.post("/api/export-excel")
+async def export_to_excel(table_data: str = Form(...)):
+    """
+    Export extracted table data to Excel file.
+
+    Args:
+        table_data: JSON string containing extracted table data
+
+    Returns:
+        Excel file as a download
+    """
+    try:
+        # Parse JSON data
+        try:
+            data = json.loads(table_data)
+        except json.JSONDecodeError as e:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Invalid JSON data: {str(e)}"
+            )
+
+        # Validate data structure
+        if not validate_table_data(data):
+            raise HTTPException(
+                status_code=400,
+                detail="Invalid table data structure"
+            )
+
+        # Generate filename
+        filename = "extracted_tables.xlsx"
+
+        # Create Excel file
+        excel_file = create_excel_from_tables(data, filename)
+
+        # Return as download
+        return StreamingResponse(
+            excel_file,
+            media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            headers={
+                "Content-Disposition": f"attachment; filename={filename}"
+            }
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error creating Excel file: {str(e)}"
         )
 
 

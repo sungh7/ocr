@@ -10,14 +10,17 @@ const extractBtnText = document.getElementById('extractBtnText');
 const spinner = document.getElementById('spinner');
 const resultsSection = document.getElementById('resultsSection');
 const resultsContainer = document.getElementById('resultsContainer');
+const exportExcelBtn = document.getElementById('exportExcelBtn');
 
 let selectedFile = null;
+let extractedTableData = null;
 
 // Event Listeners
 uploadBtn.addEventListener('click', () => fileInput.click());
 fileInput.addEventListener('change', handleFileSelect);
 clearBtn.addEventListener('click', clearSelection);
 extractBtn.addEventListener('click', extractTable);
+exportExcelBtn.addEventListener('click', exportToExcel);
 
 // Drag and drop
 uploadArea.addEventListener('dragover', (e) => {
@@ -137,10 +140,14 @@ function displayResults(result) {
 
     if (!result.success) {
         displayError('표 추출에 실패했습니다.');
+        exportExcelBtn.style.display = 'none';
         return;
     }
 
     const data = result.data;
+
+    // Store extracted data for Excel export
+    extractedTableData = data;
 
     // Check if tables were found
     if (!data.tables || data.tables.length === 0) {
@@ -149,6 +156,9 @@ function displayResults(result) {
                 <p>${data.message || '이미지에서 표를 찾을 수 없습니다.'}</p>
             </div>
         `;
+
+        // Hide Excel button if no tables found
+        exportExcelBtn.style.display = 'none';
 
         // Show raw response if available
         if (data.raw_response) {
@@ -167,6 +177,9 @@ function displayResults(result) {
         const tableHtml = createTableHtml(table, index);
         resultsContainer.innerHTML += tableHtml;
     });
+
+    // Show Excel export button
+    exportExcelBtn.style.display = 'inline-flex';
 
     // Scroll to results
     resultsSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -236,6 +249,64 @@ function escapeHtml(text) {
     const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;
+}
+
+async function exportToExcel() {
+    if (!extractedTableData) {
+        alert('추출된 표 데이터가 없습니다.');
+        return;
+    }
+
+    try {
+        // Disable button during export
+        exportExcelBtn.disabled = true;
+        const originalText = exportExcelBtn.innerHTML;
+        exportExcelBtn.innerHTML = '<span class="spinner"></span> 생성 중...';
+
+        // Create form data
+        const formData = new FormData();
+        formData.append('table_data', JSON.stringify(extractedTableData));
+
+        // Call export API
+        const response = await fetch('/api/export-excel', {
+            method: 'POST',
+            body: formData
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.detail || '엑셀 생성에 실패했습니다.');
+        }
+
+        // Download file
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'extracted_tables.xlsx';
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+
+        // Show success message
+        console.log('엑셀 파일 다운로드 완료');
+
+    } catch (error) {
+        console.error('Error:', error);
+        alert('엑셀 파일 생성 중 오류가 발생했습니다: ' + error.message);
+    } finally {
+        // Reset button
+        exportExcelBtn.disabled = false;
+        exportExcelBtn.innerHTML = `
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                <polyline points="7 10 12 15 17 10"></polyline>
+                <line x1="12" y1="15" x2="12" y2="3"></line>
+            </svg>
+            엑셀로 다운로드
+        `;
+    }
 }
 
 // Check API health on page load

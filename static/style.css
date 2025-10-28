@@ -172,6 +172,21 @@ h3 {
     background-color: var(--background);
 }
 
+.btn-success {
+    background-color: var(--success-color);
+    color: white;
+}
+
+.btn-success:hover {
+    background-color: #059669;
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-lg);
+}
+
+.btn-success svg {
+    margin-right: 0.25rem;
+}
+
 .btn-large {
     width: 100%;
     justify-content: center;
@@ -200,6 +215,17 @@ h3 {
     padding: 2rem;
     box-shadow: var(--shadow);
     animation: fadeIn 0.3s ease;
+}
+
+.results-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+}
+
+.results-header h2 {
+    margin-bottom: 0;
 }
 
 .table-result {
