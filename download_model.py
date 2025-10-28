@@ -1,40 +1,65 @@
 #!/usr/bin/env python3
 """
-Download and cache DeepSeek VL model for offline use.
+Download and cache vision-language models for offline use.
 
-This script downloads the model from HuggingFace and caches it locally.
-Run this script before deploying the application to ensure the model is available.
+This script downloads models from HuggingFace and caches them locally.
+Run this script before deploying the application to ensure models are available.
 
 Usage:
-    python download_model.py [--model MODEL_NAME] [--cache-dir CACHE_DIR]
+    python download_model.py [--model-type MODEL_TYPE] [--cache-dir CACHE_DIR]
 
 Examples:
-    # Download default model (1.3B)
+    # Download default model (deepseek-vl-1.3b)
     python download_model.py
 
-    # Download larger model (7B)
-    python download_model.py --model deepseek-ai/deepseek-vl-7b-chat
+    # Download MiniCPM-o 2.6
+    python download_model.py --model-type minicpm-o-2.6
+
+    # Download larger DeepSeek model
+    python download_model.py --model-type deepseek-vl-7b
 
     # Specify custom cache directory
     python download_model.py --cache-dir /path/to/models
+
+    # Download all models
+    python download_model.py --all
 """
 
 import argparse
 import os
 import sys
-from transformers import AutoModelForCausalLM, AutoTokenizer
+from transformers import AutoModelForCausalLM, AutoModel, AutoTokenizer
 import torch
 
+# Import model factory for supported models
+from model_factory import ModelFactory
 
-def download_model(model_name: str, cache_dir: str = None):
+
+def download_model(model_type: str, cache_dir: str = None):
     """
     Download and cache the model and tokenizer.
 
     Args:
-        model_name: HuggingFace model identifier
+        model_type: Model type identifier (e.g., 'deepseek-vl-1.3b', 'minicpm-o-2.6')
         cache_dir: Optional custom cache directory
     """
-    print(f"Downloading DeepSeek VL model: {model_name}")
+    # Get model configuration
+    if model_type not in ModelFactory.SUPPORTED_MODELS:
+        available = ", ".join(ModelFactory.SUPPORTED_MODELS.keys())
+        print(f"✗ Error: Unknown model type '{model_type}'")
+        print(f"Available models: {available}")
+        sys.exit(1)
+
+    model_config = ModelFactory.SUPPORTED_MODELS[model_type]
+    model_name = model_config["hf_name"]
+
+    print("=" * 70)
+    print(f"Downloading Model: {model_type}")
+    print("=" * 70)
+    print(f"HuggingFace Name: {model_name}")
+    print(f"Description: {model_config['description']}")
+    print(f"VRAM Required: {model_config['vram']}")
+    print()
     print("This may take several minutes depending on your internet connection...")
     print()
 
@@ -47,15 +72,15 @@ def download_model(model_name: str, cache_dir: str = None):
 
         # Check available device
         if torch.cuda.is_available():
-            print(f"CUDA available: {torch.cuda.get_device_name(0)}")
-            print(f"CUDA memory: {torch.cuda.get_device_properties(0).total_memory / 1024**3:.2f} GB")
+            print(f"✓ CUDA available: {torch.cuda.get_device_name(0)}")
+            print(f"  CUDA memory: {torch.cuda.get_device_properties(0).total_memory / 1024**3:.2f} GB")
         else:
-            print("CUDA not available. Model will be downloaded for CPU use.")
+            print("⚠ CUDA not available. Model will be downloaded for CPU use.")
 
         print()
 
         # Download tokenizer
-        print("1/2 Downloading tokenizer...")
+        print("[1/2] Downloading tokenizer...")
         tokenizer = AutoTokenizer.from_pretrained(
             model_name,
             trust_remote_code=True
@@ -64,10 +89,16 @@ def download_model(model_name: str, cache_dir: str = None):
         print()
 
         # Download model
-        print("2/2 Downloading model...")
+        print("[2/2] Downloading model...")
         print("Note: This is a large file and may take significant time.")
 
-        model = AutoModelForCausalLM.from_pretrained(
+        # Determine which AutoModel class to use
+        if "deepseek" in model_type.lower():
+            ModelClass = AutoModelForCausalLM
+        else:
+            ModelClass = AutoModel
+
+        model = ModelClass.from_pretrained(
             model_name,
             trust_remote_code=True,
             torch_dtype=torch.float16 if torch.cuda.is_available() else torch.float32,
@@ -78,29 +109,35 @@ def download_model(model_name: str, cache_dir: str = None):
 
         # Get model info
         param_count = sum(p.numel() for p in model.parameters()) / 1e9
-        print(f"Model information:")
-        print(f"  - Parameters: {param_count:.2f}B")
-        print(f"  - Model name: {model_name}")
+        print("=" * 70)
+        print("Model Information:")
+        print("=" * 70)
+        print(f"  Parameters: {param_count:.2f}B")
+        print(f"  Model Type: {model_type}")
+        print(f"  HuggingFace Name: {model_name}")
         if cache_dir:
-            print(f"  - Cache location: {cache_dir}")
+            print(f"  Cache Location: {cache_dir}")
         else:
             from transformers.utils import TRANSFORMERS_CACHE
-            print(f"  - Cache location: {TRANSFORMERS_CACHE}")
+            print(f"  Cache Location: {TRANSFORMERS_CACHE}")
 
         print()
-        print("=" * 60)
+        print("=" * 70)
         print("✓ Model download completed successfully!")
-        print("=" * 60)
+        print("=" * 70)
         print()
         print("You can now run the application with:")
-        print("  python app.py")
+        print("  python app_local.py")
+        print()
+        print("To use this model, set in .env:")
+        print(f"  MODEL_TYPE={model_type}")
         print()
 
     except Exception as e:
         print()
-        print("=" * 60)
+        print("=" * 70)
         print("✗ Error downloading model")
-        print("=" * 60)
+        print("=" * 70)
         print(f"Error: {e}")
         print()
         print("Troubleshooting:")
@@ -112,45 +149,85 @@ def download_model(model_name: str, cache_dir: str = None):
         sys.exit(1)
 
 
+def download_all_models(cache_dir: str = None):
+    """
+    Download all supported models.
+
+    Args:
+        cache_dir: Optional custom cache directory
+    """
+    models = list(ModelFactory.SUPPORTED_MODELS.keys())
+    total = len(models)
+
+    print("=" * 70)
+    print(f"Downloading ALL models ({total} total)")
+    print("=" * 70)
+    print()
+
+    for i, model_type in enumerate(models, 1):
+        print(f"\n[{i}/{total}] Starting download for: {model_type}")
+        print("-" * 70)
+        try:
+            download_model(model_type, cache_dir)
+        except SystemExit:
+            print(f"✗ Failed to download {model_type}, continuing with next model...")
+            continue
+
+    print()
+    print("=" * 70)
+    print("✓ All models downloaded!")
+    print("=" * 70)
+
+
 def main():
     parser = argparse.ArgumentParser(
-        description="Download DeepSeek VL model for local inference",
+        description="Download vision-language models for local inference",
         formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog="""
-Available models:
-  - deepseek-ai/deepseek-vl-1.3b-chat  (smaller, faster, ~3GB)
-  - deepseek-ai/deepseek-vl-7b-chat   (larger, more accurate, ~15GB)
+        epilog=f"""
+Available Models:
+{chr(10).join(f"  - {key}: {value['description']} (VRAM: {value['vram']})"
+              for key, value in ModelFactory.SUPPORTED_MODELS.items())}
 
 Examples:
   python download_model.py
-  python download_model.py --model deepseek-ai/deepseek-vl-7b-chat
+  python download_model.py --model-type minicpm-o-2.6
+  python download_model.py --model-type deepseek-vl-7b
   python download_model.py --cache-dir /data/models
+  python download_model.py --all
         """
     )
 
     parser.add_argument(
-        "--model",
+        "--model-type",
+        "-m",
         type=str,
-        default="deepseek-ai/deepseek-vl-1.3b-chat",
-        help="HuggingFace model identifier (default: deepseek-ai/deepseek-vl-1.3b-chat)"
+        default="deepseek-vl-1.3b",
+        help="Model type identifier (default: deepseek-vl-1.3b)"
     )
 
     parser.add_argument(
         "--cache-dir",
+        "-c",
         type=str,
         default=None,
         help="Custom cache directory for model storage"
     )
 
+    parser.add_argument(
+        "--all",
+        "-a",
+        action="store_true",
+        help="Download all supported models"
+    )
+
     args = parser.parse_args()
 
     print()
-    print("=" * 60)
-    print("DeepSeek VL Model Downloader")
-    print("=" * 60)
-    print()
 
-    download_model(args.model, args.cache_dir)
+    if args.all:
+        download_all_models(args.cache_dir)
+    else:
+        download_model(args.model_type, args.cache_dir)
 
 
 if __name__ == "__main__":

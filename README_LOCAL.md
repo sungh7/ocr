@@ -1,15 +1,15 @@
-# DeepSeek OCR Table Extraction - Local Deployment
+# Multi-Model OCR Table Extraction - Local Deployment
 
-이미지에서 표를 자동으로 추출하는 웹 애플리케이션입니다. **로컬 DeepSeek VL 모델**을 사용하여 API 호출 없이 완전히 독립적으로 실행됩니다.
+이미지에서 표를 자동으로 추출하는 웹 애플리케이션입니다. **여러 오픈소스 비전-언어 모델**을 사용하여 API 호출 없이 완전히 독립적으로 실행됩니다.
 
 ## 주요 특징
 
 ✅ **완전한 로컬 실행** - API 키 불필요, 인터넷 연결 불필요 (모델 다운로드 후)
-✅ **오픈소스 모델** - DeepSeek VL (Vision-Language) 모델 사용
+✅ **다중 모델 지원** - DeepSeek VL, MiniCPM-o 2.6 중 선택
 ✅ **GPU/CPU 지원** - CUDA GPU 또는 CPU에서 실행 가능
 ✅ **메모리 최적화** - 4bit/8bit quantization 지원
 ✅ **Docker 지원** - 간편한 배포 및 관리
-✅ **다중 모델 선택** - 1.3B (빠름) 또는 7B (정확함) 모델 선택 가능
+✅ **유연한 선택** - 속도, 정확도, 메모리 요구사항에 따라 모델 선택 가능
 
 ## 시스템 요구사항
 
@@ -66,12 +66,28 @@ pip install torch torchvision --index-url https://download.pytorch.org/whl/cu118
 
 #### 4. 모델 다운로드
 
+**사용 가능한 모델:**
+
+| 모델 | 크기 | VRAM | 특징 |
+|------|------|------|------|
+| `deepseek-vl-1.3b` | ~3GB | 4GB | 빠르고 효율적 (기본) |
+| `deepseek-vl-7b` | ~15GB | 14GB | 더 정확함 |
+| `minicpm-o-2.6` | ~8GB | 8GB | 균형잡힌 성능 |
+
+**다운로드 명령어:**
+
 ```bash
-# 1.3B 모델 (기본, 약 3GB)
+# DeepSeek VL 1.3B (기본, 추천)
 python download_model.py
 
-# 7B 모델 (더 정확, 약 15GB)
-python download_model.py --model deepseek-ai/deepseek-vl-7b-chat
+# DeepSeek VL 7B (더 정확)
+python download_model.py --model-type deepseek-vl-7b
+
+# MiniCPM-o 2.6
+python download_model.py --model-type minicpm-o-2.6
+
+# 모든 모델 다운로드
+python download_model.py --all
 ```
 
 모델은 자동으로 `~/.cache/huggingface/` 디렉토리에 다운로드됩니다.
@@ -82,10 +98,15 @@ python download_model.py --model deepseek-ai/deepseek-vl-7b-chat
 cp .env.example .env
 ```
 
-`.env` 파일에서 설정 변경 가능:
+`.env` 파일에서 모델 선택 및 설정 변경:
 ```env
-MODEL_NAME=deepseek-ai/deepseek-vl-1.3b-chat
+# 사용할 모델 선택
+MODEL_TYPE=deepseek-vl-1.3b  # 또는 deepseek-vl-7b, minicpm-o-2.6
+
+# 디바이스 설정
 DEVICE=auto           # auto, cuda, cpu
+
+# 메모리 최적화
 LOAD_IN_8BIT=false    # GPU 메모리 절약 (약간 느림)
 LOAD_IN_4BIT=false    # GPU 메모리 더 절약 (더 느림)
 ```
@@ -338,19 +359,40 @@ sudo systemctl restart docker
 
 ## 모델 정보
 
-### DeepSeek VL 1.3B
+### DeepSeek VL 1.3B (기본 권장)
 - **크기:** ~3GB
 - **파라미터:** 1.3B
 - **VRAM:** 4GB (fp16), 2GB (8bit), 1.5GB (4bit)
-- **속도:** 빠름
-- **정확도:** 좋음
+- **속도:** 빠름 ⚡
+- **정확도:** 좋음 ⭐⭐⭐
+- **추천 용도:** 빠른 프로토타이핑, 실시간 처리
 
 ### DeepSeek VL 7B
 - **크기:** ~15GB
 - **파라미터:** 7B
 - **VRAM:** 14GB (fp16), 7GB (8bit), 4GB (4bit)
-- **속도:** 중간
-- **정확도:** 매우 좋음
+- **속도:** 중간 🐢
+- **정확도:** 매우 좋음 ⭐⭐⭐⭐⭐
+- **추천 용도:** 높은 정확도 필요 시, 배치 처리
+
+### MiniCPM-o 2.6 (NEW!)
+- **크기:** ~8GB
+- **파라미터:** 2.6B
+- **VRAM:** 8GB (fp16), 4GB (8bit), 2GB (4bit)
+- **속도:** 중상 ⚡⚡
+- **정확도:** 좋음 ⭐⭐⭐⭐
+- **추천 용도:** 균형잡힌 성능, 범용 사용
+
+### 모델 선택 가이드
+
+| 상황 | 추천 모델 | 이유 |
+|------|----------|------|
+| GPU 메모리 4GB 이하 | deepseek-vl-1.3b (8bit) | 가장 적은 메모리 사용 |
+| GPU 메모리 8GB | minicpm-o-2.6 | 좋은 성능과 효율성 균형 |
+| GPU 메모리 16GB 이상 | deepseek-vl-7b | 최고 정확도 |
+| 빠른 처리 속도 필요 | deepseek-vl-1.3b | 가장 빠른 추론 |
+| 높은 정확도 필요 | deepseek-vl-7b | 가장 정확한 결과 |
+| 범용 사용 | minicpm-o-2.6 | 중간 크기, 좋은 성능 |
 
 ## 비용 비교
 

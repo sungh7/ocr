@@ -12,8 +12,8 @@ from pydantic_settings import BaseSettings
 from pydantic import Field
 import uvicorn
 
-# Import local DeepSeek VL model
-from deepseek_vl import get_model_instance, DeepSeekVLModel
+# Import unified model factory
+from model_factory import get_unified_model, UnifiedModelWrapper, ModelFactory
 
 # Import Excel utilities
 from excel_utils import create_excel_from_tables, validate_table_data
@@ -23,10 +23,16 @@ logger = logging.getLogger(__name__)
 
 
 class Settings(BaseSettings):
-    model_name: str = Field(
-        default="deepseek-ai/deepseek-vl-1.3b-chat",
+    model_type: str = Field(
+        default="deepseek-vl-1.3b",
+        env="MODEL_TYPE",
+        description="Model type (deepseek-vl-1.3b, deepseek-vl-7b, minicpm-o-2.6)"
+    )
+    # Legacy support for direct model name
+    model_name: Optional[str] = Field(
+        default=None,
         env="MODEL_NAME",
-        description="HuggingFace model name (1.3b or 7b)"
+        description="Direct HuggingFace model name (overrides MODEL_TYPE)"
     )
     device: str = Field(
         default="auto",
@@ -52,9 +58,9 @@ class Settings(BaseSettings):
 settings = Settings()
 
 app = FastAPI(
-    title="DeepSeek OCR Table Extraction (Local)",
-    description="Web application for extracting tables from images using local DeepSeek VL model",
-    version="2.0.0"
+    title="Multi-Model OCR Table Extraction (Local)",
+    description="Web application for extracting tables from images using local vision-language models",
+    version="3.0.0"
 )
 
 # CORS middleware
@@ -70,7 +76,7 @@ app.add_middleware(
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
 # Global model instance (loaded on startup)
-model: Optional[DeepSeekVLModel] = None
+model: Optional[UnifiedModelWrapper] = None
 
 
 @app.on_event("startup")
@@ -80,23 +86,41 @@ async def startup_event():
     This ensures the model is ready before handling requests.
     """
     global model
-    logger.info("Loading DeepSeek VL model...")
-    logger.info(f"Model: {settings.model_name}")
+
+    # Determine which model to load
+    model_type = settings.model_type
+
+    logger.info("="*60)
+    logger.info("Loading Vision-Language Model...")
+    logger.info(f"Model Type: {model_type}")
     logger.info(f"Device: {settings.device}")
     logger.info(f"8-bit: {settings.load_in_8bit}, 4-bit: {settings.load_in_4bit}")
 
+    # Show available models
+    available_models = ModelFactory.list_models()
+    if model_type in available_models:
+        model_info = available_models[model_type]
+        logger.info(f"Description: {model_info['description']}")
+        logger.info(f"VRAM Required: {model_info['vram']}")
+
+    logger.info("="*60)
+
     try:
-        model = get_model_instance(
-            model_name=settings.model_name,
+        model = get_unified_model(
+            model_type=model_type,
             device=settings.device,
             load_in_8bit=settings.load_in_8bit,
             load_in_4bit=settings.load_in_4bit
         )
-        logger.info("Model loaded successfully!")
+        logger.info("✓ Model loaded successfully!")
+        logger.info("="*60)
     except Exception as e:
-        logger.error(f"Failed to load model: {e}")
+        logger.error("="*60)
+        logger.error(f"✗ Failed to load model: {e}")
         logger.error("Application will start but model inference will fail.")
-        logger.error("Make sure you have downloaded the model using: python download_model.py")
+        logger.error("Make sure you have downloaded the model using:")
+        logger.error(f"  python download_model.py --model-type {model_type}")
+        logger.error("="*60)
 
 
 @app.on_event("shutdown")
@@ -160,13 +184,23 @@ async def health_check():
     """Health check endpoint."""
     import torch
 
+    # Get model info
+    model_info = {}
+    if model is not None:
+        model_info["type"] = settings.model_type
+        if settings.model_type in ModelFactory.SUPPORTED_MODELS:
+            model_config = ModelFactory.SUPPORTED_MODELS[settings.model_type]
+            model_info["description"] = model_config["description"]
+            model_info["hf_name"] = model_config["hf_name"]
+
     return {
         "status": "healthy",
         "model_loaded": model is not None,
-        "model_name": settings.model_name,
+        "model_info": model_info,
         "device": settings.device,
         "cuda_available": torch.cuda.is_available(),
-        "cuda_device": torch.cuda.get_device_name(0) if torch.cuda.is_available() else None
+        "cuda_device": torch.cuda.get_device_name(0) if torch.cuda.is_available() else None,
+        "available_models": list(ModelFactory.SUPPORTED_MODELS.keys())
     }
 
 
