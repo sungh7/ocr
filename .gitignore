@@ -47,3 +47,17 @@ uploads/
 *.bmp
 !static/*.png
 !static/*.jpg
+
+# Model cache
+models/
+*.pt
+*.bin
+*.safetensors
+!models/.gitkeep
+
+# HuggingFace cache
+.cache/
+
+# Logs
+*.log
+logs/
