@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DeepSeek OCR Table Extraction</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>DeepSeek OCR Table Extraction</h1>
+            <p class="subtitle">이미지에서 표를 추출하는 웹 애플리케이션</p>
+        </header>
+
+        <main>
+            <!-- Upload Section -->
+            <section class="upload-section">
+                <div class="upload-area" id="uploadArea">
+                    <svg class="upload-icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                    </svg>
+                    <h3>이미지를 업로드하세요</h3>
+                    <p>클릭하거나 드래그 앤 드롭으로 파일을 업로드하세요</p>
+                    <input type="file" id="fileInput" accept="image/*" style="display: none;">
+                    <button class="btn btn-primary" id="uploadBtn">파일 선택</button>
+                </div>
+
+                <!-- Preview Section -->
+                <div class="preview-section" id="previewSection" style="display: none;">
+                    <div class="preview-header">
+                        <h3>미리보기</h3>
+                        <button class="btn btn-secondary" id="clearBtn">다시 선택</button>
+                    </div>
+                    <div class="image-preview">
+                        <img id="previewImage" src="" alt="Preview">
+                    </div>
+                    <button class="btn btn-primary btn-large" id="extractBtn">
+                        <span id="extractBtnText">표 추출하기</span>
+                        <span class="spinner" id="spinner" style="display: none;"></span>
+                    </button>
+                </div>
+            </section>
+
+            <!-- Results Section -->
+            <section class="results-section" id="resultsSection" style="display: none;">
+                <h2>추출 결과</h2>
+                <div id="resultsContainer"></div>
+            </section>
+        </main>
+
+        <footer>
+            <p>Powered by DeepSeek OCR API</p>
+        </footer>
+    </div>
+
+    <script src="/static/script.js"></script>
+</body>
+</html>
